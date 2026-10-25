@@ -1,0 +1,16 @@
+# 构建与生成状态
+.build/
+output/
+packages/
+*.user
+*.sln
+*.vcxproj*
+CMakeCache.txt
+CMakeFiles/
+
+# 本机临时
+.local/
+*.log
+*.dmp
+*.pdb
+draw-debug.log

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 2, "id": "anomaly.example.widget-gallery", "name": "控件画廊", "author": "Anomaly", "license": "AGPL-3.0-only", "version": "1.0.0",
+  "entry": "plugin.dll", "api": {"major": 1, "minMinor": 0, "maxMinor": 0},
+  "games": ["nte"], "builds": ["nte-*"], "loadPhase": "game-ready",
+  "description": "演示 anomaly.ui 服务表中全部控件的参考页面。",
+  "services": [{"id": "anomaly.ui", "minVersion": 1}],
+  "capabilities": ["ui"]
+}
