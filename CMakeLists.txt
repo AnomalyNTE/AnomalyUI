@@ -227,8 +227,47 @@ target_link_libraries(anomaly_ui_resources PUBLIC anomaly_plugin_scope ole32 she
 # ---------------------------------------------------------------------------
 # The UI itself.
 # ---------------------------------------------------------------------------
+# Liquid glass shaders live in src/ui/shaders and are compiled at build time
+# into bytecode headers, so the renderer never compiles HLSL at run time.
+file(GLOB ANOMALYUI_FXC_CANDIDATES
+    "$ENV{ProgramFiles\(x86\)}/Windows Kits/10/bin/*/x64/fxc.exe")
+list(SORT ANOMALYUI_FXC_CANDIDATES COMPARE NATURAL ORDER DESCENDING)
+set(ANOMALYUI_FXC_HINTS "")
+foreach(candidate IN LISTS ANOMALYUI_FXC_CANDIDATES)
+    get_filename_component(candidate_directory "${candidate}" DIRECTORY)
+    list(APPEND ANOMALYUI_FXC_HINTS "${candidate_directory}")
+endforeach()
+find_program(ANOMALYUI_FXC fxc
+    HINTS
+        "${CMAKE_WINDOWS_KITS_10_DIR}/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
+        ${ANOMALYUI_FXC_HINTS}
+    REQUIRED)
+set(ANOMALYUI_SHADER_DIR "${GENERATED_DIR}/anomaly/shaders")
+file(MAKE_DIRECTORY "${ANOMALYUI_SHADER_DIR}")
+set(ANOMALYUI_SHADER_HEADERS "")
+function(anomalyui_compile_shader source entry profile variable)
+    set(output "${ANOMALYUI_SHADER_DIR}/${variable}.h")
+    add_custom_command(
+        OUTPUT "${output}"
+        COMMAND "${ANOMALYUI_FXC}" /nologo /O3 /Ges /T ${profile} /E ${entry}
+                /Vn ${variable} /Fh "${output}" "${CMAKE_SOURCE_DIR}/${source}"
+        DEPENDS "${CMAKE_SOURCE_DIR}/${source}"
+        COMMENT "Compiling ${source} (${entry})"
+        VERBATIM)
+    set(ANOMALYUI_SHADER_HEADERS ${ANOMALYUI_SHADER_HEADERS} "${output}" PARENT_SCOPE)
+endfunction()
+anomalyui_compile_shader(src/ui/shaders/glass_pass.hlsl vs_full vs_4_0 kGlassFullScreenVs)
+anomalyui_compile_shader(src/ui/shaders/glass_pass.hlsl ps_down ps_4_0 kGlassDownsamplePs)
+anomalyui_compile_shader(src/ui/shaders/glass_pass.hlsl ps_blur ps_4_0 kGlassBlurPs)
+anomalyui_compile_shader(src/ui/shaders/glass_surface.hlsl vs_quad vs_4_0 kGlassSurfaceVs)
+anomalyui_compile_shader(src/ui/shaders/glass_surface.hlsl ps_glass ps_4_0 kGlassSurfacePs)
+
 add_library(anomaly_imgui STATIC
+    ${ANOMALYUI_SHADER_HEADERS}
+    src/ui/shaders/glass_pass.hlsl
+    src/ui/shaders/glass_surface.hlsl
     src/ui/host_ui_service.cpp
+    src/ui/liquid_glass.cpp
     src/ui/platform_ui_theme.cpp
     "${imgui_SOURCE_DIR}/imgui.cpp"
     "${imgui_SOURCE_DIR}/imgui_draw.cpp"
@@ -240,6 +279,10 @@ target_include_directories(anomaly_imgui PUBLIC "${imgui_SOURCE_DIR}" PRIVATE in
 target_compile_definitions(anomaly_imgui PUBLIC ${ANOMALYUI_DEFINITIONS})
 target_compile_options(anomaly_imgui PRIVATE /W3 /EHsc /utf-8)
 target_link_libraries(anomaly_imgui PUBLIC d3d11 dxgi dxguid)
+# The .hlsl files are listed for the IDE only; fxc builds them above.
+set_source_files_properties(
+    src/ui/shaders/glass_pass.hlsl src/ui/shaders/glass_surface.hlsl
+    PROPERTIES HEADER_FILE_ONLY TRUE)
 
 add_library(anomaly_platform_ui_model STATIC src/ui/platform_ui_model.cpp)
 anomalyui_configure_target(anomaly_platform_ui_model)
